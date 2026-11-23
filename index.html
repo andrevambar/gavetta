@@ -798,9 +798,15 @@ window.gSync=(()=>{
    const remote=await (await api(`${API}/files/${id}?alt=media`)).json(),first=!ls('synced');
    if(remote&&remote.items&&(first||(remote.savedAt||0)>(S.savedAt||0))){if(first)ls('bak',JSON.stringify(S));S=remote;lastSig=null;save();ls('synced','1');last=Date.now();render();if(first)toast('Carreguei os teus dados do Drive',false)}
    else{ls('synced','1');if(force||(S.savedAt||0)>(remote.savedAt||0))await push();else last=Date.now()}}catch(e){console.warn(e)}}
- async function connect(interactive){await token(interactive);on=true;ls('g','1');try{const a=await (await api(`${API}/about?fields=user(emailAddress)`)).json();email=a.user.emailAddress;ls('email',email)}catch(e){}await pull();renderSide()}
+ async function connect(interactive){await token(interactive);on=true;ls('g','1');try{const a=await (await api(`${API}/about?fields=user(emailAddress)`)).json();email=a.user.emailAddress;ls('email',email)}catch(e){}await pull();renderSide();names()}
  function disconnect(){try{if(tok&&window.google)google.accounts.oauth2.revoke(tok)}catch(e){}tok=null;on=false;fileId=null;ls('g',null);renderSide()}
- const schedule=()=>{if(!on)return;clearTimeout(t);t=setTimeout(push,2000)};
+ const schedule=()=>{if(!on)return;clearTimeout(t);t=setTimeout(()=>{names();push()},1500)};
+ const tried=new Set();
+ async function names(){if(!on||!online)return;const gid=u=>{const m=String(u||'').match(/\/d\/([\w-]{10,})|folders\/([\w-]{10,})|[?&]id=([\w-]{10,})/);return m&&(m[1]||m[2]||m[3])};
+  const todo=[];S.items.forEach(i=>{if(i.url&&/sem título$/.test(i.title||''))todo.push(i);(i.blocks||[]).forEach(b=>{if(b.k==='file'&&/sem título$/.test(b.title||''))todo.push(b)})});
+  let changed=false;for(const o of todo){const id=gid(o.url);if(!id||tried.has(id)||/^demo/.test(id))continue;tried.add(id);
+   try{const r=await (await api(`${API}/files/${id}?fields=name&supportsAllDrives=true`)).json();if(r.name){o.title=r.name;changed=true}}catch(e){}}
+  if(changed){save();render()}}
  async function search(q){const qq=`trashed=false and mimeType!='application/vnd.google-apps.shortcut'`+(q?` and name contains '${q.replace(/['\\]/g,'\\$&')}'`:'');
   const r=await (await api(`${API}/files?q=${encodeURIComponent(qq)}&orderBy=modifiedTime desc&pageSize=25&fields=files(id,name,mimeType,webViewLink,modifiedTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`,{},true)).json();return r.files||[]}
  email=ls('email')||'';
