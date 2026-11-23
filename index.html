@@ -73,6 +73,12 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .ib{height:36px;min-width:36px;border-radius:8px;display:inline-grid;place-items:center;color:var(--mute);padding:0 8px;font-size:14px;white-space:nowrap}
 .ib:hover{background:var(--hov);color:var(--ink)}
 .ib.on{color:var(--acc)}
+.crumb .ct{color:var(--ink);font-weight:700;font-size:16px;display:inline-flex;align-items:center;gap:8px;vertical-align:middle;max-width:100%}
+.crumb .ct .fi{width:20px;height:20px;flex:none}
+.crumb .ct b{overflow:hidden;text-overflow:ellipsis;outline:none}
+.crumb .ct b[contenteditable=true]{box-shadow:0 1px 0 var(--acc)}
+.ib.offb.on{color:var(--ok,#1f9d55)}
+.pdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#e8a33a;margin-left:8px;vertical-align:middle}
 .ib svg{width:19px;height:19px}
 .back{display:none}
 .page{width:100%;max-width:820px;margin:0 auto;padding:24px clamp(18px,5vw,56px) 120px}
@@ -464,15 +470,18 @@ const embedHTML=(url,type)=>NATIVE&&GHOST(url)?`<div class="nslot" data-url="${e
 function viewItem(id){
  const i=item(id);if(!i)return viewHome();
  const crumb=i.type==='journal'?`<a data-go="home">Início</a> / Diário`:`<a data-go="nb" data-id="${i.nb}">${esc(nbName(i.nb))}</a>${anc(i).map(p=>` / <a data-go="item" data-id="${p.id}">${esc(p.title||'Sem título')}</a>`).join('')} / ${esc(i.title)}`;
+ const trail=i.type==='journal'?'':`<a data-go="nb" data-id="${i.nb}">${esc(nbName(i.nb))}</a>${anc(i).map(p=>` / <a data-go="item" data-id="${p.id}">${esc(p.title||'Sem título')}</a>`).join('')} / `;
  const acts=`<button class="ib${i.pinned?' on':''}" data-act="pin" data-id="${id}" aria-label="Fixar">${i.pinned?I.starf:I.star}</button><button class="ib" data-act="imenu" data-id="${id}" aria-label="Opções">${I.more}</button>`;
  if(i.type==='folder')return viewFolder(i,crumb);
  if(i.type==='board'){document.body.classList.add('fullfile');return topbar(crumb,acts)+boardHTML(i)}
  if(FILE(i.type)){
   document.body.classList.add('fullfile');
-  return topbar(crumb,`<a class="ib txt" href="${esc(safeUrl(i.url))}" target="_blank" rel="noopener">${I.ext}<span>Abrir no Google</span></a>`+acts)+
-  `<div style="padding:0 18px 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">${icon(i.type)}<b style="font-size:18px">${esc(i.title)}</b>${offChip(i)}${syncChip(i)}</div><div class="viewer">${embedHTML(i.url,i.type)}</div>`}
+  const fc=`${trail}<span class="ct">${icon(i.type)}<b data-ftitle="${id}">${esc(i.title)}</b>${i.sync==='pending'?'<span class="pdot" title="Por sincronizar"></span>':''}</span>`;
+  const offb=`<button class="ib offb${i.offline?' on':''}" data-act="toff" data-id="${id}" title="${i.offline?'Disponível offline — tocar para remover':'Só online — tocar para guardar offline'}" aria-label="${i.offline?'Disponível offline':'Só online'}" aria-pressed="${i.offline}">${I.down}</button>`;
+  return topbar(fc,offb+`<a class="ib" href="${esc(safeUrl(i.url))}" target="_blank" rel="noopener" title="Abrir no Google" aria-label="Abrir no Google">${I.ext}</a>`+acts)+
+  `<div class="viewer">${embedHTML(i.url,i.type)}</div>`}
  const subs=S.items.filter(k=>k.parent===id);
- return topbar(crumb,acts)+`<div class="page">
+ return topbar(i.type==='journal'?crumb:trail.replace(/ \/ $/,''),acts)+`<div class="page">
  <h1 class="t" contenteditable data-edit="title" data-id="${id}" data-ph="Sem título">${esc(i.title)}</h1>
  <div class="meta">${offChip(i)}${syncChip(i)}<span>Editado ${ago(i.upd)}</span></div>
  <div id="blocks">${i.blocks.map((b,k)=>block(b,k)).join('')}</div>
@@ -711,7 +720,7 @@ document.addEventListener('click',e=>{
  else if(act==='bup'||act==='bdown'){const t=act==='bup'?k-1:k+1;if(t>=0&&t<i.blocks.length){[i.blocks[k],i.blocks[t]]=[i.blocks[t],i.blocks[k]];touch(i)}closeMenu();render()}
  else if(act==='bdel'){const [b]=i.blocks.splice(k,1);undo=()=>{i.blocks.splice(k,0,b);render()};touch(i);closeMenu();render();toast('Bloco apagado')}
  else if(act==='imenu'){const t=item(a.dataset.id);menu(`${t.type==='journal'?'':`<label style="display:block;font-size:13px;color:var(--mute)">Mover para<select data-move="${t.id}">${moveOpts(t)}</select></label>`}${FILE(t.type)?`<button data-act="rename" data-id="${t.id}">Mudar o nome</button>`:''}<button data-act="toff" data-id="${t.id}">${t.offline?'Remover do offline':'Disponibilizar offline'}</button><hr><button data-act="idel" data-id="${t.id}" style="color:var(--acc)">Apagar</button>`,a)}
- else if(act==='rename'){closeMenu();const t=item(a.dataset.id);const b=$('.viewer').previousElementSibling.querySelector('b');b.contentEditable=true;b.dataset.edit='title';b.dataset.id=t.id;b.focus()}
+ else if(act==='rename'){closeMenu();const t=item(a.dataset.id);const b=document.querySelector(`[data-ftitle="${t.id}"]`);if(!b)return;b.contentEditable=true;b.dataset.edit='title';b.dataset.id=t.id;b.focus();const rg=document.createRange();rg.selectNodeContents(b);const sl=getSelection();sl.removeAllRanges();sl.addRange(rg);b.onblur=()=>render()}
  else if(act==='idel'){closeMenu();delItem(a.dataset.id)}
  else if(act==='rmenu'){const t=item(a.dataset.id);const j=t.type==='journal';menu(`${j?'':`<button data-act="rrename" data-id="${t.id}">Mudar o nome</button><label style="display:block;font-size:13px;color:var(--mute)">Mover para<select data-move="${t.id}">${moveOpts(t)}</select></label>`}<button data-act="toff" data-id="${t.id}">${t.offline?'Remover do offline':'Disponibilizar offline'}</button><hr><button data-act="idel" data-id="${t.id}" style="color:var(--acc)">Apagar</button>`,a)}
  else if(act==='rrename'){closeMenu();const r=document.querySelector(`.r[data-id="${a.dataset.id}"]`);if(!r)return;const el=r.querySelector('.rt');r.draggable=false;el.contentEditable=true;el.dataset.edit='title';el.dataset.id=a.dataset.id;if(!item(a.dataset.id).title)el.textContent='';el.focus();const rg=document.createRange();rg.selectNodeContents(el);const sl=getSelection();sl.removeAllRanges();sl.addRange(rg);el.onblur=()=>render()}
@@ -761,7 +770,7 @@ document.addEventListener('keydown',e=>{
  if(el.dataset.wday&&e.key==='Enter'&&el.value.trim()){const v=el.value.trim(),d=detect(v),j=jfor(el.dataset.wday,true);j.blocks.push(d?{k:'file',url:d.url,type:d.type,title:d.title}:{k:'todo',v,d:false});touch(j);const k=el.dataset.wday;render();const n=document.querySelector(`[data-wday="${k}"]`);n&&n.focus();return}
  if(el.dataset.wnb&&e.key==='Enter'&&el.value.trim()){const v=el.value.trim(),d=detect(v),nb=el.dataset.wnb;S.items.push({id:uid(),nb,parent:null,type:d?d.type:'note',title:d?d.title:v.slice(0,80),url:d?d.url:'',blocks:d?[]:[{k:'p',v:''}],offline:false,sync:online?'ok':'pending',pinned:false,upd:now()});render();const n=document.querySelector(`[data-wnb="${nb}"]`);n&&n.focus();return}
  if(e.key==='Escape'){pickCb=null;closeCap();$('#mDrive').classList.remove('show');closeMenu();$('#mSearch').classList.remove('show');$('#mSet').classList.remove('show')}
- if(el.dataset.edit==='title'&&el.closest('.r')&&(e.key==='Enter'||e.key==='Escape')){e.preventDefault();el.blur();return}
+ if(el.dataset.edit==='title'&&el.closest('.r,.crumb')&&(e.key==='Enter'||e.key==='Escape')){e.preventDefault();el.blur();return}
  if(el.dataset.edit==='title'&&e.key==='Enter'){e.preventDefault();const i=item(el.dataset.id);if(i&&i.blocks){if(!i.blocks.length)i.blocks.push({k:'p',v:''});render('[data-b="0"]')}else{el.blur();render()}}
  if(el.dataset.edit==='nbname'&&e.key==='Enter'){e.preventDefault();el.blur()}
  if(el.dataset.b!=null){const i=item(route.id),k=+el.dataset.b,b=i.blocks[k];
