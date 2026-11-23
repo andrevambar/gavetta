@@ -364,8 +364,8 @@ const desc=id=>{const out=[];const walk=x=>S.items.filter(k=>k.parent===x).forEa
 const byKind=(a,b)=>(b.type==='folder')-(a.type==='folder')||b.upd-a.upd;
 const nbName=id=>(S.nb.find(n=>n.id===id)||{}).name||'';
 const textOf=i=>(i.title+' '+(i.cards||[]).map(c=>c.v||'').join(' ')+' '+(i.blocks||[]).map(b=>(b.v||b.title||'')+' '+(b.c||'')).join(' '));
-const tagsAll=()=>{const m={};S.items.forEach(i=>(textOf(i).match(/#[\p{L}\d_-]+/gu)||[]).forEach(t=>m[t]=(m[t]||0)+1));return Object.entries(m).sort((a,b)=>b[1]-a[1])};
-const fmt=t=>esc(t).replace(/(^|\s)(#[\p{L}\d_-]+)/gu,'$1<span class="tag">$2</span>');
+const tagsAll=()=>{const m={};S.items.forEach(i=>(textOf(i).match(/#\p{L}[\p{L}\d_-]*/gu)||[]).forEach(t=>m[t]=(m[t]||0)+1));return Object.entries(m).sort((a,b)=>b[1]-a[1])};
+const fmt=t=>esc(t).replace(/(^|\s)(#\p{L}[\p{L}\d_-]*)/gu,'$1<span class="tag">$2</span>');
 const touch=i=>{i.upd=now();if(!online)i.sync='pending';save()};
 function journal(){const id='j:'+ymd(now());let j=item(id);if(!j){const d=new Date();j={id,nb:null,parent:null,type:'journal',title:`${DAYN[d.getDay()][0].toUpperCase()+DAYN[d.getDay()].slice(1)}, ${d.getDate()} de ${MON[d.getMonth()]}`,blocks:[{k:'todo',v:'',d:false}],offline:true,sync:'ok',upd:now()};
  const prev=S.items.filter(x=>x.type==='journal'&&x.id<id).sort((a,b)=>a.id<b.id?1:-1)[0];
@@ -834,6 +834,7 @@ function net(v){online=v;render();if(v&&window.gSync&&gSync.state().on){gSync.pu
  else toast('Sem rede — continua a escrever, sincronizo depois',false)}
 addEventListener('online',()=>net(true));addEventListener('offline',()=>net(false));
 if(HOSTED&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+window.gvtDiag=d=>toast(`Editor: ecrã ${d.dpr}x · ${d.w}px`,false);
 if(NATIVE){addEventListener('resize',nativePlace);const mo=new MutationObserver(()=>nativePlace());document.querySelectorAll('.modal,#menu').forEach(m=>mo.observe(m,{attributes:true,attributeFilter:['class']}))}
 if(innerWidth<=760)$('#app').dataset.pane='side';
 render();
