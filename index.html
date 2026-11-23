@@ -627,7 +627,7 @@ function render(focus){
  document.body.classList.remove('fullfile','weekv');
  const m=route.v==='week'?viewWeek():route.v==='nb'?viewNb(route.id):route.v==='item'?viewItem(route.id):route.v==='tag'?viewTag(route.id):viewHome();
  $('#main').innerHTML=m;renderSide();save();
- {const bi=route.v==='item'&&item(route.id);if(bi&&bi.type==='board')initBoard(bi);if(NATIVE)requestAnimationFrame(nativePlace)}
+ {const bi=route.v==='item'&&item(route.id);if(bi&&bi.type==='board')initBoard(bi);if(NATIVE)requestAnimationFrame(nativePlace);if(bi&&/sem título$/.test(bi.title||'')&&window.gSync)setTimeout(()=>gSync.names(),50)}
  if(focus){const el=$(focus);if(el){el.focus();const r=document.createRange();r.selectNodeContents(el);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)}}}
 function viewTag(t){const list=S.items.filter(i=>textOf(i).includes(t));return topbar(`<a data-go="home">Início</a> / Etiqueta`)+`<div class="page"><h1 class="t"><span class="tag">${esc(t)}</span></h1><div class="meta">${list.length} itens</div><div class="rows">${list.map(row).join('')}</div></div>`}
 function go(v,id){route={v,id};if(v==='journal')route={v:'item',id:journal().id};if(v==='day')route={v:'item',id:jfor(id,true).id};$('#app').dataset.pane='main';render();$('#main').scrollTop=0;if(v==='week'){const t=$('#wdays .today');if(t)$('#wdays').scrollLeft=t.offsetLeft-$('#wdays').offsetLeft-14}}
@@ -804,15 +804,15 @@ window.gSync=(()=>{
  const tried=new Set();
  async function names(){if(!on||!online)return;const gid=u=>{const m=String(u||'').match(/\/d\/([\w-]{10,})|folders\/([\w-]{10,})|[?&]id=([\w-]{10,})/);return m&&(m[1]||m[2]||m[3])};
   const todo=[];S.items.forEach(i=>{if(i.url&&/sem título$/.test(i.title||''))todo.push(i);(i.blocks||[]).forEach(b=>{if(b.k==='file'&&/sem título$/.test(b.title||''))todo.push(b)})});
-  let changed=false;for(const o of todo){const id=gid(o.url);if(!id||tried.has(id)||/^demo/.test(id))continue;tried.add(id);
-   try{const r=await (await api(`${API}/files/${id}?fields=name&supportsAllDrives=true`)).json();if(r.name){o.title=r.name;changed=true}}catch(e){}}
+  let changed=false;for(const o of todo){const id=gid(o.url);if(!id||tried.has(id)||/^demo/.test(id))continue;
+   try{const r=await (await api(`${API}/files/${id}?fields=name&supportsAllDrives=true`)).json();tried.add(id);if(r.name){o.title=r.name;changed=true}}catch(e){console.warn('nome',e)}}
   if(changed){save();render()}}
  async function search(q){const qq=`trashed=false and mimeType!='application/vnd.google-apps.shortcut'`+(q?` and name contains '${q.replace(/['\\]/g,'\\$&')}'`:'');
   const r=await (await api(`${API}/files?q=${encodeURIComponent(qq)}&orderBy=modifiedTime desc&pageSize=25&fields=files(id,name,mimeType,webViewLink,modifiedTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`,{},true)).json();return r.files||[]}
  email=ls('email')||'';
  if(HOSTED&&ls('g'))setTimeout(()=>connect(false).catch(()=>{on=false;renderSide()}),300);
  addEventListener('focus',()=>{if(on&&Date.now()-last>15000)pull()});
- return{connect,disconnect,schedule,pull:f=>pull(f),push,search,state:()=>({on,email,last})}})();
+ return{connect,disconnect,schedule,names,pull:f=>pull(f),push,search,state:()=>({on,email,last})}})();
 
 /* ---------- procurar no Drive ---------- */
 const MIME={'application/vnd.google-apps.document':'doc','application/vnd.google-apps.spreadsheet':'sheet','application/vnd.google-apps.presentation':'slides','application/vnd.google-apps.folder':'drive','application/pdf':'pdf'};
