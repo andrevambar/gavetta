@@ -45,7 +45,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .nv.on{background:var(--hov);font-weight:700}
 .r.dropin,.crumb a.dropin{background:var(--acc2);outline:2px dashed var(--acc);outline-offset:-2px;border-radius:8px}
 .dragsrc{opacity:.45}
-.ghost{position:fixed;left:0;top:0;z-index:20;pointer-events:none;display:flex;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--rule);border-radius:12px;padding:10px 14px;box-shadow:0 16px 40px #0003;font-weight:700;font-size:15px;max-width:260px;white-space:nowrap;overflow:hidden}
+.dghost{position:fixed;left:0;top:0;z-index:20;pointer-events:none;display:flex;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--rule);border-radius:12px;padding:10px 14px;box-shadow:0 16px 40px #0003;font-weight:700;font-size:15px;max-width:260px;white-space:nowrap;overflow:hidden}
 .r,.side .nv{-webkit-touch-callout:none}
 .nv.dropin{background:var(--acc2);outline:2px dashed var(--acc);outline-offset:-2px}
 .nv svg,.nv .fi{width:18px;height:18px;flex:none}
@@ -249,6 +249,20 @@ h1.t{font-weight:900;font-size:clamp(32px,4.6vw,44px);line-height:1.08;letter-sp
 .res .fi{width:18px;height:18px}
 .res small{color:var(--mute);margin-left:auto;white-space:nowrap;font-size:13px}
 .res .empty{padding:20px;color:var(--mute);text-align:center}
+.res .rsec{padding:12px 14px 4px;font-size:12px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.res .snip{display:block;font-size:13px;color:var(--mute)}
+.agenda{margin:4px 0 22px;border:1px solid var(--rule);border-radius:12px;padding:6px 6px}
+.agenda .ah{display:flex;align-items:center;gap:8px;padding:6px 8px 4px;font-size:12px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.ev{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;text-decoration:none;color:var(--ink);font-size:15px}
+.ev:hover{background:var(--side)}
+.ev .eb{width:4px;align-self:stretch;border-radius:2px;flex:none}
+.ev .et{width:68px;white-space:nowrap;flex:none;font-variant-numeric:tabular-nums;color:var(--mute);font-size:14px}
+.ev .en{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev.past{opacity:.45}
+.agenda .none{padding:6px 8px 8px;color:var(--mute);font-size:14px}
+.it.ev2{color:var(--ink);text-decoration:none;gap:7px}
+.it.ev2 .eb{width:3px;height:18px;border-radius:2px;flex:none}
+.it.ev2 .et{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nums;flex:none}
 .set{padding:22px;display:grid;gap:14px}
 .set h3{margin:0;font-size:24px;font-weight:900;letter-spacing:-.02em}
 .note{font-size:14px;color:var(--mute);margin:0}
@@ -484,6 +498,7 @@ function viewItem(id){
  return topbar(i.type==='journal'?crumb:trail.replace(/ \/ $/,''),acts)+`<div class="page">
  <h1 class="t" contenteditable data-edit="title" data-id="${id}" data-ph="Sem título">${esc(i.title)}</h1>
  <div class="meta">${offChip(i)}${syncChip(i)}<span>Editado ${ago(i.upd)}</span></div>
+ ${i.type==='journal'?agendaHTML(i.id.slice(2)):''}
  <div id="blocks">${i.blocks.map((b,k)=>block(b,k)).join('')}</div>
  ${(()=>{const l=i.blocks[i.blocks.length-1];return l&&l.k==='p'&&!l.v?'':'<div class="p ghost" contenteditable data-ghost="1" data-ph="Escreve algo…"></div>'})()}
  <div class="adder"><button class="btn" data-act="add" data-k="h"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5v14M18 5v14M6 12h12"/></svg>Título</button><button class="btn" data-act="add" data-k="toggle"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>Toggle</button><button class="btn" data-act="add" data-k="todo"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Tarefa</button><span class="sep"></span><button class="btn gf" data-act="add" data-k="file"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg>Ficheiro Google</button></div>
@@ -506,7 +521,7 @@ function viewWeek(){
  const days=Array.from({length:n},(_,k)=>{const d=new Date(T);d.setDate(d.getDate()+st+k);const key=ymd(d),diff=st+k,j=jfor(key);
   const bl=j?j.blocks.map((b,x)=>({b,x})).filter(o=>o.b.k==='todo'&&o.b.v||o.b.k==='file'):[];
   return`<div class="col${diff===0?' today':diff<0?' past':''}"><h2 data-go="day" data-id="${key}">${diff===0?'Hoje':diff===1?'Amanhã':DAYN[d.getDay()][0].toUpperCase()+DAYN[d.getDay()].slice(1,3)}<small>${d.getDate()} ${MON[d.getMonth()]}</small></h2>
-  <ul class="list" data-day="${key}">${bl.map(({b,x})=>b.k==='file'?`<li class="it" draggable="true" data-day="${key}" data-x="${x}" data-act="wfile">${icon(b.type)}<span class="tt">${esc(b.title)}</span></li>`:`<li class="it${b.d?' done':''}" draggable="true" data-day="${key}" data-x="${x}"><button class="ck" data-act="wtick" aria-label="Concluir"></button><span class="tt" data-act="wtick">${fmt(b.v)}</span></li>`).join('')}
+  <ul class="list" data-day="${key}">${HOSTED&&gCal.on()?gCal.day(key).map(e=>`<li><a class="it ev2" href="${esc(safeUrl(e.u))}" target="_blank" rel="noopener"><span class="eb" style="background:${esc(e.c)}"></span><span class="et">${e.all?'':hm(e.s)}</span><span class="tt">${esc(e.n)}</span></a></li>`).join(''):''}${bl.map(({b,x})=>b.k==='file'?`<li class="it" draggable="true" data-day="${key}" data-x="${x}" data-act="wfile">${icon(b.type)}<span class="tt">${esc(b.title)}</span></li>`:`<li class="it${b.d?' done':''}" draggable="true" data-day="${key}" data-x="${x}"><button class="ck" data-act="wtick" aria-label="Concluir"></button><span class="tt" data-act="wtick">${fmt(b.v)}</span></li>`).join('')}
   <li class="add"><input data-wday="${key}" placeholder="Escreve e Enter…" aria-label="Nova tarefa"></li></ul></div>`}).join('');
  const books=S.nb.map(nb=>`<div class="col"><h2 data-go="nb" data-id="${nb.id}">${esc(nb.name)}</h2><ul class="list">${S.items.filter(i=>i.nb===nb.id&&!i.parent&&(!onlyOff||i.offline)).sort((a,b)=>b.upd-a.upd).map(i=>`<li class="it" data-go="item" data-id="${i.id}">${icon(i.type)}<span class="tt">${esc(i.title||'Sem título')}</span>${i.sync==='pending'?'<span class="dot p"></span>':i.offline?'<span class="dot"></span>':''}</li>`).join('')}
   <li class="add"><input data-wnb="${nb.id}" placeholder="Nova nota ou cola um link…" aria-label="Adicionar ao caderno"></li></ul></div>`).join('');
@@ -695,6 +710,8 @@ document.addEventListener('click',e=>{
  const act=a.dataset.act,i=route.v==='item'?item(route.id):null,k=+a.dataset.k;
  if(act==='search')openSearch();
  else if(act==='cap')openCap();
+ else if(act==='calon')gCal.connect();
+ else if(act==='caloff'){gCal.disconnect();toast('Calendário desligado',false)}
  else if(act==='wprev'){woff--;render()}else if(act==='wnext'){woff++;render()}else if(act==='wtoday'){woff=0;render()}
  else if(act==='bl'||act==='br')$('#wbooks').scrollBy({left:act==='bl'?-280:280,behavior:'smooth'});
  else if(act==='wtick'){const li=a.closest('.it'),j=item('j:'+li.dataset.day),b=j.blocks[+li.dataset.x];b.d=!b.d;touch(j);render()}
@@ -745,7 +762,7 @@ document.addEventListener('dragend',clearDrop);
 {let lp=null,dg=null,ghost=null,eatClick=false;
  document.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')return;const src=e.target.closest('.r[draggable],.side .nv[data-id]');if(!src||e.target.closest('.board'))return;
   lp={src,x:e.clientX,y:e.clientY,t:setTimeout(()=>{const t=item(src.dataset.id);if(!t||t.type==='journal')return;dg={id:t.id,src};src.classList.add('dragsrc');
-   ghost=document.createElement('div');ghost.className='ghost';ghost.innerHTML=icon(t.type)+'<span>'+esc(t.title||'Sem título')+'</span>';document.body.appendChild(ghost);moveG(lp.x,lp.y);try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}},420)}});
+   ghost=document.createElement('div');ghost.className='dghost';ghost.innerHTML=icon(t.type)+'<span>'+esc(t.title||'Sem título')+'</span>';document.body.appendChild(ghost);moveG(lp.x,lp.y);try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}},420)}});
  const moveG=(x,y)=>{ghost.style.transform=`translate(${x-30}px,${y-50}px)`};
  document.addEventListener('pointermove',e=>{if(!lp)return;if(!dg){if(Math.hypot(e.clientX-lp.x,e.clientY-lp.y)>10){clearTimeout(lp.t);lp=null}return}
   moveG(e.clientX,e.clientY);const el=document.elementFromPoint(e.clientX,e.clientY),n=el&&el.closest(DROPSEL);document.querySelectorAll('.dropin').forEach(x=>x!==n&&x.classList.remove('dropin'));if(n&&dropDest(n))n.classList.add('dropin')});
@@ -802,11 +819,22 @@ document.addEventListener('drop',e=>{const l=e.target.closest&&e.target.closest(
 /* ---------- pesquisa ---------- */
 let sel=0,hits=[],pickCb=null,pickEx=null;
 function openPick(cb,ex){pickCb=cb;pickEx=ex;openSearch()}
-const choose=it=>{$('#mSearch').classList.remove('show');if(pickCb){const f=pickCb;pickCb=null;f(it)}else go('item',it.id)};
+const choose=it=>{$('#mSearch').classList.remove('show');
+ if(it.drive){const f=it.drive;let x=S.items.find(i=>i.url===f.webViewLink);if(!x){ensureInbox();x={id:uid(),nb:INBOX,parent:null,type:MIME[f.mimeType]||'link',title:f.name,url:f.webViewLink,blocks:[],offline:false,sync:'ok',pinned:false,upd:now()};S.items.push(x);toast('Também guardado na Caixa de entrada',false)}go('item',x.id);return}
+ if(pickCb){const f=pickCb;pickCb=null;f(it)}else go('item',it.id)};
 function openSearch(){$('#q').placeholder=pickCb?'Escolhe um ficheiro ou página para pôr no quadro…':'Procurar páginas, ficheiros, #etiquetas…';$('#mSearch').classList.add('show');$('#q').value='';runSearch();$('#q').focus()}
-function runSearch(){const q=$('#q').value.toLowerCase().trim();
- hits=[...S.items].sort((a,b)=>b.upd-a.upd).filter(i=>i.id!==pickEx&&(!pickCb||i.type!=='journal')).filter(i=>!q||(textOf(i)+' '+(TYPES[i.type]||'')).toLowerCase().includes(q)).slice(0,30);sel=0;
- $('#res').innerHTML=hits.length?hits.map((i,k)=>`<button data-k="${k}" class="${k===0?'sel':''}">${icon(i.type)}<span>${esc(i.title||'Sem título')}</span><small>${i.nb?esc(nbName(i.nb)):'Diário'}${i.offline?' · offline':''}</small></button>`).join(''):'<div class="empty">Nada encontrado.</div>'}
+let ftsT=null,ftsQ='',ftsRes=[];
+function runSearch(){const raw=$('#q').value.trim(),q=raw.toLowerCase();
+ const local=[...S.items].sort((a,b)=>b.upd-a.upd).filter(i=>i.id!==pickEx&&(!pickCb||i.type!=='journal')).filter(i=>!q||(textOf(i)+' '+(TYPES[i.type]||'')).toLowerCase().includes(q)).slice(0,30);
+ const canFts=!pickCb&&HOSTED&&online&&window.gSync&&gSync.state().on&&raw.length>=3;
+ const known=new Set(S.items.map(i=>i.url).filter(Boolean));
+ const drive=canFts&&ftsQ===raw?ftsRes.filter(f=>!known.has(f.webViewLink)):[];
+ hits=[...local,...drive.map(f=>({drive:f}))];sel=Math.min(sel,Math.max(0,hits.length-1));if(ftsQ!==raw)sel=0;
+ const btn=(h,k)=>h.drive?`<button data-k="${k}" class="${k===sel?'sel':''}">${icon(MIME[h.drive.mimeType]||'link')}<span>${esc(h.drive.name)}</span><small>Drive</small></button>`:`<button data-k="${k}" class="${k===sel?'sel':''}">${icon(h.type)}<span>${esc(h.title||'Sem título')}</span><small>${h.nb?esc(nbName(h.nb)):'Diário'}${h.offline?' · offline':''}</small></button>`;
+ let html=local.map((h,k)=>btn(h,k)).join('');
+ if(canFts){html+=`<div class="rsec">Dentro dos ficheiros da Drive</div>`+(ftsQ!==raw?'<div class="empty" style="padding:10px">A procurar…</div>':drive.length?drive.map((f,j)=>btn({drive:f},local.length+j)).join(''):'<div class="empty" style="padding:10px">Nada mais na Drive.</div>')}
+ $('#res').innerHTML=html||'<div class="empty">Nada encontrado.</div>';
+ if(canFts&&ftsQ!==raw){clearTimeout(ftsT);ftsT=setTimeout(async()=>{const qv=raw;try{const r=await gSync.fts(qv);if($('#q').value.trim()===qv){ftsQ=qv;ftsRes=r;runSearch()}}catch(e){ftsQ=qv;ftsRes=[];if($('#q').value.trim()===qv)runSearch()}},400)}}
 $('#q').oninput=runSearch;
 $('#q').onkeydown=e=>{if((e.key==='ArrowDown'||e.key==='ArrowUp')&&hits.length){e.preventDefault();sel=(sel+(e.key==='ArrowDown'?1:-1)+hits.length)%hits.length;document.querySelectorAll('#res button').forEach((b,k)=>b.classList.toggle('sel',k===sel))}
  if(e.key==='Enter'&&hits[sel])choose(hits[sel])};
@@ -821,6 +849,7 @@ function openSet(){
   st.on?`<p class="note">Ligado como <b>${esc(st.email||'conta Google')}</b>. As tuas páginas, quadros e pastas ficam guardados no teu Drive (pasta escondida da app) e sincronizam entre o Mac e o iPhone.</p><p class="note">${st.last?'Última sincronização: '+ago(st.last):'A sincronizar…'}</p>`
   :`<p class="note">Liga a tua conta Google para veres os teus ficheiros reais e guardares tudo no teu Drive.</p>`}
  <div style="display:flex;gap:8px;flex-wrap:wrap">${HOSTED?(st.on?'<button class="btn" id="gsyncnow">Sincronizar agora</button><button class="btn red" id="gout">Desligar</button>':'<button class="btn pri" id="gin">Ligar ao Google</button>'):''}<button class="btn" id="copy">Copiar dados (JSON)</button><button class="btn red" id="reset">Repor exemplo</button></div>
+ ${HOSTED?`<h3 style="margin-top:18px">Calendário Google</h3><p class="note">${window.gCal&&gCal.on()?'Os teus eventos aparecem no Hoje e na Semana. A gavetta só lê, nunca altera o calendário.':'Mostra os teus eventos no Hoje e na Semana. A gavetta só lê, nunca altera nada.'}</p><div style="display:flex;gap:8px">${window.gCal&&gCal.on()?'<button class="btn" data-act="calon">Atualizar</button><button class="btn red" data-act="caloff">Desligar</button>':'<button class="btn pri" data-act="calon">Ligar o Calendário</button>'}</div>`:''}
  <p class="note" id="connMsg">${ELECTRON?'App de Mac: os ficheiros Google abrem e editam-se dentro da app.':HOSTED?'No browser: os ficheiros Google abrem em pré-visualização; para editar usa "Abrir no Google".':''}</p>`;
  $('#mSet').classList.add('show');
  const gi=$('#gin');if(gi)gi.onclick=async()=>{try{await gSync.connect(true);openSet()}catch(e){$('#connMsg').textContent='Não foi possível ligar: '+(e&&e.type||e&&e.error||'tenta outra vez')}};
@@ -871,12 +900,51 @@ window.gSync=(()=>{
   let changed=false;for(const o of todo){const id=gid(o.url);if(!id||tried.has(id)||/^demo/.test(id))continue;
    try{const r=await (await api(`${API}/files/${id}?fields=name&supportsAllDrives=true`)).json();tried.add(id);if(r.name){o.title=r.name;changed=true}}catch(e){console.warn('nome',e)}}
   if(changed){save();render()}}
+ async function fts(q){const qq=`trashed=false and mimeType!='application/vnd.google-apps.folder' and mimeType!='application/vnd.google-apps.shortcut' and fullText contains '${q.replace(/['\\]/g,'\\$&')}'`;
+  const r=await (await api(`${API}/files?q=${encodeURIComponent(qq)}&pageSize=12&fields=files(id,name,mimeType,webViewLink,modifiedTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`)).json();return r.files||[]}
  async function search(q){const qq=`trashed=false and mimeType!='application/vnd.google-apps.shortcut'`+(q?` and name contains '${q.replace(/['\\]/g,'\\$&')}'`:'');
   const r=await (await api(`${API}/files?q=${encodeURIComponent(qq)}&orderBy=modifiedTime desc&pageSize=25&fields=files(id,name,mimeType,webViewLink,modifiedTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`,{},true)).json();return r.files||[]}
  email=ls('email')||'';
  if(HOSTED&&ls('g'))setTimeout(()=>connect(false).catch(()=>{on=false;renderSide()}),300);
  addEventListener('focus',()=>{if(on&&Date.now()-last>15000)pull()});
- return{connect,disconnect,schedule,names,pull:f=>pull(f),push,search,state:()=>({on,email,last})}})();
+ return{connect,disconnect,schedule,names,pull:f=>pull(f),push,search,fts,state:()=>({on,email,last})}})();
+
+/* ---------- Calendário Google ---------- */
+window.gCal=(()=>{
+ const CID='657650752825-c2a5vcjtjpo00qec5sev11g9f1bimrrn.apps.googleusercontent.com',SC='https://www.googleapis.com/auth/calendar.readonly',API='https://www.googleapis.com/calendar/v3';
+ let tok=null,exp=0,busy=false,last=0;
+ const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(KEY+'.'+k);if(v===null)localStorage.removeItem(KEY+'.'+k);else localStorage.setItem(KEY+'.'+k,v)}catch(e){}};
+ let cache={};try{cache=JSON.parse(ls('cal')||'{}')}catch(e){}
+ const gis=()=>new Promise((res,rej)=>{if(window.google&&google.accounts&&google.accounts.oauth2)return res();const sc=document.createElement('script');sc.src='https://accounts.google.com/gsi/client';sc.onload=()=>res();sc.onerror=rej;document.head.appendChild(sc)});
+ async function token(interactive){if(tok&&Date.now()<exp-60000)return tok;await gis();return new Promise((res,rej)=>{
+  const tc=google.accounts.oauth2.initTokenClient({client_id:CID,scope:SC,hint:(window.gSync&&gSync.state().email)||undefined,callback:r=>{if(r.error)return rej(r);tok=r.access_token;exp=Date.now()+r.expires_in*1000;res(tok)},error_callback:e=>rej(e)});
+  tc.requestAccessToken({prompt:interactive?'':'none'})})}
+ async function api(url,interactive){const tk=await token(interactive);const r=await fetch(url,{headers:{Authorization:'Bearer '+tk}});if(r.status===401){tok=null;if(!interactive)throw new Error('401');return api(url,true)}if(!r.ok)throw new Error('Calendar '+r.status);return r.json()}
+ async function refresh(interactive){if(busy||!online)return;busy=true;try{
+   const T=new Date();T.setHours(0,0,0,0);const a=new Date(T);a.setDate(a.getDate()-7);const b=new Date(T);b.setDate(b.getDate()+28);
+   const cl=await api(`${API}/users/me/calendarList?minAccessRole=reader&fields=items(id,backgroundColor,selected,primary,hidden)`,interactive);
+   const cals=(cl.items||[]).filter(c=>(c.selected||c.primary)&&!c.hidden).slice(0,15),out={};
+   await Promise.all(cals.map(async c=>{try{const r=await api(`${API}/calendars/${encodeURIComponent(c.id)}/events?singleEvents=true&orderBy=startTime&maxResults=250&timeMin=${a.toISOString()}&timeMax=${b.toISOString()}&fields=items(id,summary,start,end,htmlLink,status,transparency)`);
+    (r.items||[]).forEach(e=>{if(e.status==='cancelled')return;const all=!!e.start.date,st=new Date(e.start.dateTime||e.start.date+'T00:00'),en=new Date(e.end.dateTime||e.end.date+'T00:00');
+     const ev={n:e.summary||'(sem título)',u:e.htmlLink,c:c.backgroundColor||'#4285f4',all,s:all?null:st.getTime(),e:all?null:en.getTime()};
+     const d=new Date(st);d.setHours(12,0,0,0);const endD=new Date(all?en.getTime()-1:en.getTime()-1);let guard=0;
+     while(ymd(d)<=ymd(endD)&&guard++<60){(out[ymd(d)]=out[ymd(d)]||[]).push(ev);d.setDate(d.getDate()+1)}
+     if(!all&&guard===0)(out[ymd(st)]=out[ymd(st)]||[]).push(ev)})}catch(e){console.warn('cal',c.id,e)}}));
+   Object.values(out).forEach(l=>l.sort((x,y)=>(x.all?0:1)-(y.all?0:1)||(x.s||0)-(y.s||0)));
+   cache=out;ls('cal',JSON.stringify(out));ls('calon','1');last=Date.now();render()}
+  catch(e){console.warn('cal',e);if(interactive)toast('Não consegui ligar ao Calendário',false)}finally{busy=false}}
+ const on=()=>!!ls('calon');
+ function connect(){refresh(true)}
+ function disconnect(){try{if(tok&&window.google)google.accounts.oauth2.revoke(tok)}catch(e){}tok=null;cache={};ls('cal',null);ls('calon',null);render()}
+ const day=k=>cache[k]||[];
+ if(HOSTED&&on())setTimeout(()=>refresh(false),900);
+ addEventListener('focus',()=>{if(on()&&Date.now()-last>10*60e3)refresh(false)});
+ return{connect,disconnect,refresh,day,on}})();
+const hm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+function agendaHTML(key){if(!HOSTED)return'';
+ if(!gCal.on())return`<div class="agenda"><div class="ah">Agenda</div><div class="none">Vê aqui os eventos do teu Calendário Google. <button class="btn" style="height:32px;margin-left:6px" data-act="calon">Mostrar o meu Calendário</button></div></div>`;
+ const evs=gCal.day(key),nowT=Date.now();
+ return`<div class="agenda"><div class="ah">Agenda</div>${evs.length?evs.map(e=>`<a class="ev${!e.all&&e.e<nowT?' past':''}" href="${esc(safeUrl(e.u))}" target="_blank" rel="noopener"><span class="eb" style="background:${esc(e.c)}"></span><span class="et">${e.all?'Dia todo':hm(e.s)}</span><span class="en">${esc(e.n)}</span></a>`).join(''):'<div class="none">Sem eventos.</div>'}</div>`}
 
 /* ---------- procurar no Drive ---------- */
 const MIME={'application/vnd.google-apps.document':'doc','application/vnd.google-apps.spreadsheet':'sheet','application/vnd.google-apps.presentation':'slides','application/vnd.google-apps.folder':'drive','application/pdf':'pdf'};
