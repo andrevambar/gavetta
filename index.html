@@ -429,10 +429,13 @@ function mockFile(type){
  :`<svg viewBox="0 0 400 300"><rect x="40" y="10" width="320" height="320" rx="8" fill="var(--bg)"/><rect x="60" y="36" width="170" height="14" rx="6" fill="${type==='pdf'?'#e04a3f':'#3b7cf0'}"/>${lines(70,10)}</svg>`;
  return`<div class="mock">${art}<div class="cap">${online?'Na app de Mac, o ficheiro abre e edita-se aqui mesmo. Esta pré-visualização no browser não pode embeber o Google.':'Sem rede: aqui aparece a cópia offline guardada neste dispositivo.'}</div></div>`}
 const HOSTED=/^https:$/.test(location.protocol)&&!/claude|anthropic|usercontent/.test(location.hostname)||location.hostname==='localhost';
+const NATIVE=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.gavetta);
+const nativeMsg=m=>{try{window.webkit.messageHandlers.gavetta.postMessage(m)}catch(e){}};
+let nativeUrl=null;const nativeOpen=u=>{if(!NATIVE||!GHOST(u))return;nativeUrl=u;nativeMsg({type:'open',url:u})};const nativeClose=()=>{if(NATIVE&&nativeUrl){nativeUrl=null;nativeMsg({type:'close'})}};
 const safeUrl=u=>/^https?:\/\//i.test(String(u||'').trim())?String(u).trim():'#';
 const GHOST=u=>/^https:\/\/(docs|drive)\.google\.com\//.test(u);
 const previewUrl=u=>{let m;if((m=u.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([\w-]+)/)))return`https://docs.google.com/${m[1]}/d/${m[2]}/preview`;if((m=u.match(/drive\.google\.com\/file\/d\/([\w-]+)/)))return`https://drive.google.com/file/d/${m[1]}/preview`;if((m=u.match(/folders\/([\w-]+)/)))return`https://drive.google.com/embeddedfolderview?id=${m[1]}#list`;return u};
-const embedHTML=(url,type)=>ELECTRON&&GHOST(url)?`<webview src="${esc(url)}" partition="persist:google" allowpopups></webview>`:HOSTED&&GHOST(url)&&!/demo\d/.test(url)&&online?`<iframe src="${esc(previewUrl(url))}" style="flex:1;border:0;width:100%;min-height:400px" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" loading="lazy"></iframe>`:mockFile(type);
+const embedHTML=(url,type)=>NATIVE&&GHOST(url)?`<div class="mock"><div class="cap" style="position:static;transform:none">A editar no painel ao lado →<br><button class="btn" data-act="nopen" data-url="${esc(url)}" style="margin-top:10px">Abrir no painel</button></div></div>`:ELECTRON&&GHOST(url)?`<webview src="${esc(url)}" partition="persist:google" allowpopups></webview>`:HOSTED&&GHOST(url)&&!/demo\d/.test(url)&&online?`<iframe src="${esc(previewUrl(url))}" style="flex:1;border:0;width:100%;min-height:400px" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" loading="lazy"></iframe>`:mockFile(type);
 function viewItem(id){
  const i=item(id);if(!i)return viewHome();
  const crumb=i.type==='journal'?`<a data-go="home">Início</a> / Diário`:`<a data-go="nb" data-id="${i.nb}">${esc(nbName(i.nb))}</a>${anc(i).map(p=>` / <a data-go="item" data-id="${p.id}">${esc(p.title||'Sem título')}</a>`).join('')} / ${esc(i.title)}`;
@@ -536,7 +539,7 @@ function initBoard(i){
   el.onblur=()=>{el.contentEditable='false';c.v=el.innerText.replace(/\n$/,'');if(c.k==='text'&&!c.v.trim()){i.cards=i.cards.filter(x=>x!==c);bsel=null;renderBoard()}touch(i);renderSide()};
   el.onkeydown=e=>{if(e.key==='Escape'||(e.key==='Enter'&&(e.metaKey||e.ctrlKey))){e.preventDefault();el.blur()}e.stopPropagation()}}
  function add(k,x,y,extra){const c=Object.assign({id:uid(),k,x:Math.round(x),y:Math.round(y),v:'',color:bcolor},extra||{});i.cards.push(c);bsel=c.id;touch(i);renderBoard();if(k!=='ref')edit(c);return c}
- function tog(c){c.open=!c.open;if(!c.open){delete c.ow;delete c.oh}touch(i);renderBoard()}
+ function tog(c){c.open=!c.open;if(c.open&&NATIVE){const it=item(c.ref);if(it&&FILE(it.type))nativeOpen(it.url)}if(!c.open){delete c.ow;delete c.oh}touch(i);renderBoard()}
  function delSel(){if(!bsel)return;const oc=i.cards.slice(),ol=i.links.slice();
   if(String(bsel).startsWith('l'))i.links.splice(+bsel.slice(1),1);else{i.cards=i.cards.filter(c=>c.id!==bsel);i.links=i.links.filter(l=>l.a!==bsel&&l.b!==bsel)}
   bsel=null;touch(i);renderBoard();undo=()=>{i.cards=oc;i.links=ol;render()};toast('Apagado do quadro')}
@@ -620,7 +623,7 @@ function render(focus){
  document.body.classList.remove('fullfile','weekv');
  const m=route.v==='week'?viewWeek():route.v==='nb'?viewNb(route.id):route.v==='item'?viewItem(route.id):route.v==='tag'?viewTag(route.id):viewHome();
  $('#main').innerHTML=m;renderSide();save();
- {const bi=route.v==='item'&&item(route.id);if(bi&&bi.type==='board')initBoard(bi)}
+ {const bi=route.v==='item'&&item(route.id);if(bi&&bi.type==='board')initBoard(bi);if(NATIVE){if(bi&&FILE(bi.type))nativeOpen(bi.url);else if(!(bi&&bi.type==='board'))nativeClose()}}
  if(focus){const el=$(focus);if(el){el.focus();const r=document.createRange();r.selectNodeContents(el);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)}}}
 function viewTag(t){const list=S.items.filter(i=>textOf(i).includes(t));return topbar(`<a data-go="home">Início</a> / Etiqueta`)+`<div class="page"><h1 class="t"><span class="tag">${esc(t)}</span></h1><div class="meta">${list.length} itens</div><div class="rows">${list.map(row).join('')}</div></div>`}
 function go(v,id){route={v,id};if(v==='journal')route={v:'item',id:journal().id};if(v==='day')route={v:'item',id:jfor(id,true).id};$('#app').dataset.pane='main';render();$('#main').scrollTop=0;if(v==='week'){const t=$('#wdays .today');if(t)$('#wdays').scrollLeft=t.offsetLeft-$('#wdays').offsetLeft-14}}
@@ -652,6 +655,7 @@ document.addEventListener('click',e=>{
  else if(act==='newpage'){const p={id:uid(),nb:a.dataset.nb,parent:a.dataset.parent||null,type:'note',title:'',blocks:[{k:'p',v:''}],offline:false,sync:online?'ok':'pending',pinned:false,upd:now()};if(p.parent)item(p.parent).open=true;S.items.push(p);route={v:'item',id:p.id};render('[data-edit=title]')}
  else if(act==='newboard'){if(a.dataset.parent)item(a.dataset.parent).open=true;const b={id:uid(),nb:a.dataset.nb,parent:a.dataset.parent||null,type:'board',title:'',cards:[],links:[],view:null,offline:false,sync:online?'ok':'pending',pinned:false,upd:now()};S.items.push(b);route={v:'item',id:b.id};render('[data-edit=title]')}
  else if(act==='newfolder'){const p=a.dataset.parent||null;if(p)item(p).open=true;S.nb.find(n=>n.id===a.dataset.nb).open=true;const f={id:uid(),nb:a.dataset.nb,parent:p,type:'folder',title:'',open:true,offline:false,sync:online?'ok':'pending',pinned:false,upd:now()};S.items.push(f);route={v:'item',id:f.id};render('[data-edit=title]')}
+ else if(act==='nopen')nativeOpen(a.dataset.url);
  else if(act==='drivepick')openDrive({nb:a.dataset.nb,par:a.dataset.parent||null});
  else if(act==='linkform'){const f=$('#linkf');f.hidden=!f.hidden;f.hidden||$('#linkv').focus()}
  else if(act==='toff'){const t=item(a.dataset.id);t.offline=!t.offline;save();render();toast(t.offline?(FILE(t.type)?'Guardado offline. Para editar sem rede, marca-o também na app Google.':'Página disponível offline'):'Removido do offline',false)}
