@@ -256,6 +256,15 @@ h1.t{font-weight:900;font-size:clamp(32px,4.6vw,44px);line-height:1.08;letter-sp
 .menu hr{border:0;border-top:1px solid var(--rule);margin:4px}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,180%);background:var(--ink);color:var(--bg);padding:10px 12px 10px 18px;border-radius:12px;display:flex;gap:14px;align-items:center;transition:transform .25s;z-index:10;font-size:15px;white-space:nowrap}
 .toast.show{transform:translate(-50%,0)}
+.capbox{padding:0}
+.capbox textarea{display:block;width:100%;min-height:120px;max-height:50vh;border:0;background:none;padding:20px 22px 8px;font:inherit;font-size:19px;line-height:1.45;resize:none;color:var(--ink);outline:none}
+.capbox .capf{display:flex;align-items:center;gap:10px;padding:10px 14px 14px 22px;font-size:13px;color:var(--mute)}
+.capbox .capf span{flex:1}
+.capbox kbd,.nv kbd{font:inherit;font-size:12px;color:var(--mute)}
+.nv.cap{color:var(--acc);font-weight:700}
+.nv.cap svg{stroke:var(--acc)}
+.fab{display:none;position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;background:var(--acc);color:#fff;box-shadow:0 10px 30px #0003;place-items:center;z-index:6}
+.fab svg{width:26px;height:26px;stroke:#fff}
 .toast button{color:var(--acc);font-weight:800;padding:6px 8px}
 @media(max-width:760px){
  .band{grid-template-columns:minmax(0,1fr)}.wnav{display:none}
@@ -269,6 +278,7 @@ h1.t{font-weight:900;font-size:clamp(32px,4.6vw,44px);line-height:1.08;letter-sp
  .blk .hand{display:none}
  .top{padding-left:8px;padding-right:8px}
  .ib.txt span{display:none}
+ .fab{display:grid}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -280,6 +290,8 @@ h1.t{font-weight:900;font-size:clamp(32px,4.6vw,44px);line-height:1.08;letter-sp
 </div>
 <div class="modal" id="mSearch"><div class="box"><input id="q" placeholder="Procurar páginas, ficheiros, #etiquetas…" autocomplete="off" aria-label="Pesquisar"><div class="res" id="res"></div></div></div>
 <div class="modal" id="mDrive"><div class="box"><input id="dq" placeholder="Procurar no teu Google Drive…" autocomplete="off" aria-label="Procurar no Drive"><div class="res" id="dres"></div></div></div>
+<div class="modal" id="mCap"><div class="box capbox"><textarea id="capv" placeholder="O que tens na cabeça? Uma ideia, uma tarefa, um link…" aria-label="Apontar"></textarea><div class="capf"><span>Vai para a Caixa de entrada · Enter guarda · Shift+Enter muda de linha</span><button class="btn pri" id="capok">Guardar</button></div></div></div>
+<button class="fab" data-act="cap" aria-label="Apontar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 <div class="modal" id="mSet"><div class="box"><div class="set" id="setBody"></div></div></div>
 <div class="menu" id="menu"></div>
 <div class="toast" id="toast"><span id="tMsg"></span><button id="tUndo">Desfazer</button></div>
@@ -358,6 +370,9 @@ function sample(){
  ]}}
 let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||!S.items)S=sample();
+const INBOX='inbox';
+function ensureInbox(){if(!S.nb.some(n=>n.id===INBOX))S.nb.unshift({id:INBOX,name:'Caixa de entrada',sys:true});if(!S.del)S.del={}}
+ensureInbox();
 const sig=()=>{const{savedAt,...r}=S;return JSON.stringify(r)};
 let lastSig=null,pushT=null;
 const save=()=>{const j=sig();if(lastSig!==null&&j!==lastSig){S.savedAt=Date.now();if(window.gSync)gSync.schedule()}lastSig=j;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
@@ -383,13 +398,15 @@ function treeRows(nbId,parent,depth){
   return`<button class="nv${route.id===i.id?' on':''}" data-go="item" data-id="${i.id}" data-type="${i.type}" draggable="true">${kids?`<span class="tw${i.open?' open':''}" data-tw="${i.id}">${I.chev}</span>`:'<span class="tw"></span>'}${icon(i.type)}<span class="n">${esc(i.title||'Sem título')}</span>${i.sync==='pending'?'<span class="dot p"></span>':i.offline?'<span class="dot"></span>':''}</button>${kids&&i.open?`<div class="kids">${treeRows(nbId,i.id,depth+1)}</div>`:''}`}).join('')}
 function renderSide(){
  $('#side').innerHTML=`<div class="logo"><svg class="mark" viewBox="10 14 80 74" aria-hidden="true"> <path d="M17 57 L23.5 45 H76.5 L83 57 Z" fill="var(--rule)"/> <g fill="#ff4b3e"> <circle cx="32" cy="45" r="11"/><circle cx="39.5" cy="32.5" r="12"/><circle cx="50" cy="28.5" r="12.5"/> <circle cx="60.5" cy="32.5" r="12"/><circle cx="68" cy="45" r="11"/><rect x="25" y="38" width="50" height="20"/> </g> <g fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M50 20.5 C47 26 53 30 50 35.5 C47 41 53 45 50 52"/><path d="M29 41.5 C32.5 40.5 35 42.5 35.6 45.8"/><path d="M71 41.5 C67.5 40.5 65 42.5 64.4 45.8"/><path d="M39 26 C42 27 43.5 29.5 43 32.5"/><path d="M61 26 C58 27 56.5 29.5 57 32.5"/></g> <rect x="13" y="55" width="74" height="29" rx="8" fill="var(--ink)"/> <rect x="40" y="66.5" width="20" height="6" rx="3" fill="var(--bg)"/> </svg>gavetta<span class="sp"></span><button class="ib" data-act="settings" aria-label="Definições">${I.gear}</button></div>
+ <button class="nv cap" data-act="cap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="n">Apontar</span><kbd>⌘J</kbd></button>
  <button class="nv" data-act="search">${I.search}<span class="n">Pesquisar</span><kbd>⌘K</kbd></button>
+ <button class="nv${route.v==='nb'&&route.id===INBOX?' on':''}" data-go="nb" data-id="${INBOX}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1.5 2.5h5L16 13h5"/></svg><span class="n">Caixa de entrada</span><span class="c">${S.items.filter(i=>i.nb===INBOX).length||''}</span></button>
  <button class="nv${route.v==='home'?' on':''}" data-go="home">${I.home}<span class="n">Início</span></button>
  <button class="nv${route.v==='item'&&route.id&&route.id.startsWith('j:')?' on':''}" data-go="journal">${I.cal}<span class="n">Hoje</span></button>
  <button class="nv${route.v==='week'?' on':''}" data-go="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></svg><span class="n">Semana</span></button>
  <button class="nv${onlyOff?' on':''}" data-act="offf">${I.down}<span class="n">Offline</span><span class="c">${S.items.filter(i=>i.offline).length}</span></button>
  <div class="sec">Cadernos<button data-act="newnb" aria-label="Novo caderno">+</button></div>
- <div class="tree">${S.nb.map(n=>`<button class="nv${route.v==='nb'&&route.id===n.id?' on':''}" data-go="nb" data-id="${n.id}"><span class="tw${n.open?' open':''}" data-twn="${n.id}">${I.chev}</span>${I.book}<span class="n">${esc(n.name)}</span><span class="c">${S.items.filter(i=>i.nb===n.id&&i.type!=='folder').length}</span></button>${n.open?`<div class="kids">${treeRows(n.id,null,1)}</div>`:''}`).join('')}
+ <div class="tree">${S.nb.filter(n=>!n.sys).map(n=>`<button class="nv${route.v==='nb'&&route.id===n.id?' on':''}" data-go="nb" data-id="${n.id}"><span class="tw${n.open?' open':''}" data-twn="${n.id}">${I.chev}</span>${I.book}<span class="n">${esc(n.name)}</span><span class="c">${S.items.filter(i=>i.nb===n.id&&i.type!=='folder').length}</span></button>${n.open?`<div class="kids">${treeRows(n.id,null,1)}</div>`:''}`).join('')}
  ${tagsAll().length?`<div class="sec">Etiquetas</div>${tagsAll().slice(0,8).map(([t,c])=>`<button class="nv" data-tag="${esc(t)}"><span class="tag" style="width:18px;text-align:center">#</span><span class="n">${esc(t.slice(1))}</span><span class="c">${c}</span></button>`).join('')}`:''}</div>
  <div class="foot"><div class="pill${online?'':' off'}" data-act="${HOSTED?'settings':'net'}" title="${HOSTED?'Ligação ao Google':'Toca para simular sem rede'}"><b></b>${!online?'Offline · guardado aqui':HOSTED?(window.gSync&&gSync.state().on?'Google Drive · ligado':'Google · não ligado'):'Online · sincronizado'}</div></div>`}
 
@@ -412,9 +429,9 @@ const row=i=>`<div class="r" data-go="item" data-id="${i.id}" data-type="${i.typ
 function viewNb(id){
  const n=S.nb.find(x=>x.id===id);if(!n)return viewHome();
  const all=S.items.filter(i=>i.nb===id&&i.type!=='folder'),list=S.items.filter(i=>i.nb===id&&!i.parent&&(!onlyOff||i.offline||i.type==='folder')).sort(byKind);
- return topbar(`<a data-go="home">Início</a> / ${esc(n.name)}`,`<button class="ib" data-act="nbmenu" data-id="${id}" aria-label="Opções">${I.more}</button>`)+`<div class="page">
- <h1 class="t" contenteditable data-edit="nbname" data-id="${id}" data-ph="Nome do caderno">${esc(n.name)}</h1>
- <div class="meta">${all.length} itens · ${all.filter(i=>i.offline).length} offline</div>
+ return topbar(`<a data-go="home">Início</a> / ${esc(n.name)}`,n.sys?'':`<button class="ib" data-act="nbmenu" data-id="${id}" aria-label="Opções">${I.more}</button>`)+`<div class="page">
+ ${n.sys?`<h1 class="t">${esc(n.name)}</h1>`:`<h1 class="t" contenteditable data-edit="nbname" data-id="${id}" data-ph="Nome do caderno">${esc(n.name)}</h1>`}
+ <div class="meta">${n.sys?(all.length?`${all.length} por arrumar · usa os três pontinhos para mover cada um para o seu caderno`:'Tudo arrumado. O que apontares com ⌘J ou com o + vem parar aqui.'):`${all.length} itens · ${all.filter(i=>i.offline).length} offline`}</div>
  <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="btn pri" data-act="newpage" data-nb="${id}">+ Nova página</button><button class="btn" data-act="newboard" data-nb="${id}">${icon('board')} Novo quadro</button><button class="btn" data-act="newfolder" data-nb="${id}">${icon('folder')} Nova pasta</button><button class="btn" data-act="drivepick" data-nb="${id}">${icon('drive')} Procurar no Drive</button><button class="btn" data-act="linkform" data-nb="${id}">${icon('link')} Colar link</button></div>
  <form class="inline" id="linkf" hidden><input id="linkv" placeholder="Cola o link do Docs, Sheets, Slides ou Drive" aria-label="Link Google"><button class="btn pri">Adicionar</button></form>
  <div class="rows" style="margin-top:14px">${list.map(row).join('')||'<p class="note" style="padding:20px 0">Caderno vazio. Cria uma página ou liga um ficheiro.</p>'}</div></div>`}
@@ -636,10 +653,26 @@ function render(focus){
 function viewTag(t){const list=S.items.filter(i=>textOf(i).includes(t));return topbar(`<a data-go="home">Início</a> / Etiqueta`)+`<div class="page"><h1 class="t"><span class="tag">${esc(t)}</span></h1><div class="meta">${list.length} itens</div><div class="rows">${list.map(row).join('')}</div></div>`}
 function go(v,id){route={v,id};if(v==='journal')route={v:'item',id:journal().id};if(v==='day')route={v:'item',id:jfor(id,true).id};$('#app').dataset.pane='main';render();$('#main').scrollTop=0;if(v==='week'){const t=$('#wdays .today');if(t)$('#wdays').scrollLeft=t.offsetLeft-$('#wdays').offsetLeft-14}}
 
+/* ---------- apontar ---------- */
+function capture(txt){txt=String(txt||'').replace(/\r/g,'').trim();if(!txt)return null;ensureInbox();
+ const lines=txt.split('\n'),first=lines[0].trim(),rest=lines.slice(1).join('\n').trim(),d=detect(first);
+ let it;if(d&&!rest){it={id:uid(),nb:INBOX,parent:null,type:d.type,title:d.title,url:d.url,blocks:[],offline:false,sync:online?'ok':'pending',pinned:false,upd:now()}}
+ else{const bl=rest?rest.split('\n').map(v=>{const f=detect(v);return f?{k:'file',url:f.url,type:f.type,title:f.title}:{k:'p',v}}):[{k:'p',v:''}];
+  it={id:uid(),nb:INBOX,parent:null,type:'note',title:first.slice(0,120),blocks:bl,offline:false,sync:online?'ok':'pending',pinned:false,upd:now()}}
+ S.items.push(it);save();return it}
+function openCap(){$('#mCap').classList.add('show');const t=$('#capv');t.value='';setTimeout(()=>t.focus(),30)}
+function closeCap(){$('#mCap').classList.remove('show')}
+function doCap(){const it=capture($('#capv').value);closeCap();if(!it)return;render();if(window.gSync&&it.type!=='note'&&/sem título$/.test(it.title))gSync.names();toast('Guardado na Caixa de entrada',false)}
+$('#capok').onclick=doCap;
+$('#capv').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();doCap()}else if(e.key==='Escape'){e.preventDefault();closeCap()}e.stopPropagation()};
+$('#mCap').onclick=e=>{if(e.target.id==='mCap')closeCap()};
+function hashCap(){const m=location.hash.match(/^#apontar=(.*)$/s);if(!m)return;let t='';try{t=decodeURIComponent(m[1].replace(/\+/g,' '))}catch(e){t=m[1]}history.replaceState(null,'',location.pathname+location.search);if(capture(t)){go('nb',INBOX);toast('Guardado na Caixa de entrada',false)}}
+addEventListener('hashchange',hashCap);
+
 /* ---------- eventos ---------- */
 let tT;function toast(m,u=true){$('#tMsg').textContent=m;$('#tUndo').style.display=u?'':'none';$('#toast').classList.add('show');clearTimeout(tT);tT=setTimeout(()=>$('#toast').classList.remove('show'),5000)}
 $('#tUndo').onclick=()=>{undo&&undo();undo=null;$('#toast').classList.remove('show')};
-function delItem(id){const it0=item(id);if(it0&&it0.type==='folder'){const old=S.items.map(x=>({...x})),kids=S.items.filter(k=>k.parent===id);kids.forEach(k=>k.parent=it0.parent);S.items=S.items.filter(k=>k.id!==id);undo=()=>{S.items=old;render()};toast(`Pasta apagada${kids.length?' — o conteúdo ficou em '+(it0.parent?item(it0.parent).title:nbName(it0.nb)):''}`);it0.parent?go('item',it0.parent):go('nb',it0.nb);return}const ids=[id,...S.items.filter(k=>k.parent===id).map(k=>k.id)];const old=S.items.slice();S.items=S.items.filter(k=>!ids.includes(k.id));undo=()=>{S.items=old;render()};const i=old.find(k=>k.id===id);toast('Apagado: '+(i.title||'página'));go(i.nb?'nb':'home',i.nb)}
+function delItem(id){const it0=item(id);if(it0&&it0.type==='folder'){const old=S.items.map(x=>({...x})),kids=S.items.filter(k=>k.parent===id);kids.forEach(k=>k.parent=it0.parent);S.items=S.items.filter(k=>k.id!==id);S.del[id]=now();undo=()=>{S.items=old;delete S.del[id];render()};toast(`Pasta apagada${kids.length?' — o conteúdo ficou em '+(it0.parent?item(it0.parent).title:nbName(it0.nb)):''}`);it0.parent?go('item',it0.parent):go('nb',it0.nb);return}const ids=[id,...S.items.filter(k=>k.parent===id).map(k=>k.id)];const old=S.items.slice();S.items=S.items.filter(k=>!ids.includes(k.id));ids.forEach(k=>S.del[k]=now());undo=()=>{S.items=old;ids.forEach(k=>delete S.del[k]);render()};const i=old.find(k=>k.id===id);toast('Apagado: '+(i.title||'página'));go(i.nb?'nb':'home',i.nb)}
 function menu(html,el){const m=$('#menu');m.innerHTML=html;m.classList.add('show');const r=el.getBoundingClientRect();m.style.top=Math.min(r.bottom+6,innerHeight-m.offsetHeight-10)+'px';m.style.left=Math.max(10,Math.min(r.right-m.offsetWidth,innerWidth-m.offsetWidth-10))+'px'}
 const closeMenu=()=>$('#menu').classList.remove('show');
 document.addEventListener('click',e=>{
@@ -652,6 +685,7 @@ document.addEventListener('click',e=>{
  const a=e.target.closest('[data-act]');if(!a)return;
  const act=a.dataset.act,i=route.v==='item'?item(route.id):null,k=+a.dataset.k;
  if(act==='search')openSearch();
+ else if(act==='cap')openCap();
  else if(act==='wprev'){woff--;render()}else if(act==='wnext'){woff++;render()}else if(act==='wtoday'){woff=0;render()}
  else if(act==='bl'||act==='br')$('#wbooks').scrollBy({left:act==='bl'?-280:280,behavior:'smooth'});
  else if(act==='wtick'){const li=a.closest('.it'),j=item('j:'+li.dataset.day),b=j.blocks[+li.dataset.x];b.d=!b.d;touch(j);render()}
@@ -682,7 +716,7 @@ document.addEventListener('click',e=>{
  else if(act==='rmenu'){const t=item(a.dataset.id);const j=t.type==='journal';menu(`${j?'':`<button data-act="rrename" data-id="${t.id}">Mudar o nome</button><label style="display:block;font-size:13px;color:var(--mute)">Mover para<select data-move="${t.id}">${moveOpts(t)}</select></label>`}<button data-act="toff" data-id="${t.id}">${t.offline?'Remover do offline':'Disponibilizar offline'}</button><hr><button data-act="idel" data-id="${t.id}" style="color:var(--acc)">Apagar</button>`,a)}
  else if(act==='rrename'){closeMenu();const r=document.querySelector(`.r[data-id="${a.dataset.id}"]`);if(!r)return;const el=r.querySelector('.rt');r.draggable=false;el.contentEditable=true;el.dataset.edit='title';el.dataset.id=a.dataset.id;if(!item(a.dataset.id).title)el.textContent='';el.focus();const rg=document.createRange();rg.selectNodeContents(el);const sl=getSelection();sl.removeAllRanges();sl.addRange(rg);el.onblur=()=>render()}
  else if(act==='nbmenu')menu(`<button data-act="nbdel" data-id="${a.dataset.id}" style="color:var(--acc)">Apagar caderno e o seu conteúdo</button>`,a);
- else if(act==='nbdel'){closeMenu();const oldN=S.nb.slice(),oldI=S.items.slice(),id=a.dataset.id;S.nb=S.nb.filter(n=>n.id!==id);S.items=S.items.filter(x=>x.nb!==id);undo=()=>{S.nb=oldN;S.items=oldI;render()};toast('Caderno apagado');go('home')}
+ else if(act==='nbdel'){closeMenu();const oldN=S.nb.slice(),oldI=S.items.slice(),id=a.dataset.id;const gone=[id,...oldI.filter(x=>x.nb===id).map(x=>x.id)];S.nb=S.nb.filter(n=>n.id!==id);S.items=S.items.filter(x=>x.nb!==id);gone.forEach(k=>S.del[k]=now());undo=()=>{S.nb=oldN;S.items=oldI;gone.forEach(k=>delete S.del[k]);render()};toast('Caderno apagado');go('home')}
 });
 function moveOpts(t){const bad=new Set([t.id,...desc(t.id).map(x=>x.id)]);const fp=f=>[...anc(f),f].map(x=>x.title||'Sem nome').join(' / ');
  return S.nb.map(n=>`<option value="${n.id}|"${n.id===t.nb&&!t.parent?' selected':''}>${esc(n.name)}</option>`+S.items.filter(f=>f.nb===n.id&&f.type==='folder'&&!bad.has(f.id)).map(f=>`<option value="${n.id}|${f.id}"${t.parent===f.id?' selected':''}>${esc(n.name)} / ${esc(fp(f))}</option>`).join('')).join('')}
@@ -722,10 +756,11 @@ document.addEventListener('input',e=>{
 document.addEventListener('keydown',e=>{
  const el=e.target;
  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openSearch();return}
+ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='j'){e.preventDefault();openCap();return}
 
  if(el.dataset.wday&&e.key==='Enter'&&el.value.trim()){const v=el.value.trim(),d=detect(v),j=jfor(el.dataset.wday,true);j.blocks.push(d?{k:'file',url:d.url,type:d.type,title:d.title}:{k:'todo',v,d:false});touch(j);const k=el.dataset.wday;render();const n=document.querySelector(`[data-wday="${k}"]`);n&&n.focus();return}
  if(el.dataset.wnb&&e.key==='Enter'&&el.value.trim()){const v=el.value.trim(),d=detect(v),nb=el.dataset.wnb;S.items.push({id:uid(),nb,parent:null,type:d?d.type:'note',title:d?d.title:v.slice(0,80),url:d?d.url:'',blocks:d?[]:[{k:'p',v:''}],offline:false,sync:online?'ok':'pending',pinned:false,upd:now()});render();const n=document.querySelector(`[data-wnb="${nb}"]`);n&&n.focus();return}
- if(e.key==='Escape'){pickCb=null;$('#mDrive').classList.remove('show');closeMenu();$('#mSearch').classList.remove('show');$('#mSet').classList.remove('show')}
+ if(e.key==='Escape'){pickCb=null;closeCap();$('#mDrive').classList.remove('show');closeMenu();$('#mSearch').classList.remove('show');$('#mSet').classList.remove('show')}
  if(el.dataset.edit==='title'&&el.closest('.r')&&(e.key==='Enter'||e.key==='Escape')){e.preventDefault();el.blur();return}
  if(el.dataset.edit==='title'&&e.key==='Enter'){e.preventDefault();const i=item(el.dataset.id);if(i&&i.blocks){if(!i.blocks.length)i.blocks.push({k:'p',v:''});render('[data-b="0"]')}else{el.blur();render()}}
  if(el.dataset.edit==='nbname'&&e.key==='Enter'){e.preventDefault();el.blur()}
@@ -783,9 +818,16 @@ function openSet(){
  const go_=$('#gout');if(go_)go_.onclick=()=>{gSync.disconnect();openSet()};
  const gn=$('#gsyncnow');if(gn)gn.onclick=async()=>{await gSync.pull(true);openSet()};
  $('#copy').onclick=async()=>{try{await navigator.clipboard.writeText(JSON.stringify(S,null,1));toast('Dados copiados',false)}catch(e){toast('Não foi possível copiar aqui',false)}};
- $('#reset').onclick=()=>{const old=S;S=sample();seedBoard();seedFolders();undo=()=>{S=old;render()};$('#mSet').classList.remove('show');go('home');toast('Exemplo reposto')}}
+ $('#reset').onclick=()=>{const old=S;S=sample();ensureInbox();seedBoard();seedFolders();undo=()=>{S=old;render()};$('#mSet').classList.remove('show');go('home');toast('Exemplo reposto')}}
 
 /* ---------- Google Drive ---------- */
+function mergeState(L,R){
+ const del={},cut=Date.now()-60*864e5;[R.del||{},L.del||{}].forEach(d=>Object.entries(d).forEach(([k,v])=>{if(v>cut&&(!del[k]||v>del[k]))del[k]=v}));
+ const rNewer=(R.savedAt||0)>(L.savedAt||0);
+ const pick=(a,b)=>!a?b:!b?a:(b.upd||0)>(a.upd||0)?b:(a.upd||0)>(b.upd||0)?a:(rNewer?b:a);
+ const alive=x=>x&&!(del[x.id]&&del[x.id]>=(x.upd||0));
+ const join=(la,ra)=>{const rm=new Map((ra||[]).map(x=>[x.id,x])),out=[];(la||[]).forEach(a=>{const w=pick(a,rm.get(a.id));rm.delete(a.id);if(alive(w))out.push(w)});rm.forEach(b=>{if(alive(b))out.push(b)});return out};
+ const base=rNewer?R:L;return{...base,nb:join(L.nb,R.nb),items:join(L.items,R.items),del,savedAt:Math.max(L.savedAt||0,R.savedAt||0)}}
 window.gSync=(()=>{
  const CID='657650752825-c2a5vcjtjpo00qec5sev11g9f1bimrrn.apps.googleusercontent.com';
  const SCOPES='https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.appdata';
@@ -798,14 +840,19 @@ window.gSync=(()=>{
   tc.requestAccessToken({prompt:interactive?'':'none'})})}
  async function api(url,opt={},interactive=false){const tk=await token(interactive);const r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+tk}});if(r.status===401){tok=null;return api(url,opt,interactive)}if(!r.ok)throw new Error('Drive '+r.status);return r}
  async function findFile(){if(fileId)return fileId;const r=await (await api(`${API}/files?spaces=appDataFolder&q=${encodeURIComponent("name='gavetta.json'")}&fields=files(id,modifiedTime)`)).json();fileId=r.files&&r.files[0]&&r.files[0].id||null;return fileId}
- async function push(){if(!on||!online||busy)return;busy=true;try{const id=await findFile(),body=JSON.stringify(S);
+ async function push(){if(!on||!online||busy)return;busy=true;try{const id=await findFile();
+   if(id&&ls('synced')){try{const remote=await (await api(`${API}/files/${id}?alt=media`)).json();if(remote&&remote.items){const before=sig();S=mergeState(S,remote);ensureInbox();if(sig()!==before){lastSig=sig();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}render()}}}catch(e){console.warn('merge',e)}}
+   const body=JSON.stringify(S);
    if(id)await api(`${UP}/files/${id}?uploadType=media`,{method:'PATCH',headers:{'Content-Type':'application/json'},body});
    else{const b='gvt'+Date.now(),m=JSON.stringify({name:'gavetta.json',parents:['appDataFolder']});const r=await (await api(`${UP}/files?uploadType=multipart&fields=id`,{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:`--${b}\r\nContent-Type: application/json\r\n\r\n${m}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${b}--`})).json();fileId=r.id}
    last=Date.now();S.items.forEach(i=>{if(i.sync==='pending')i.sync='ok'});lastSig=null;save();renderSide()}catch(e){console.warn(e)}finally{busy=false}}
  async function pull(force){if(!on||!online)return;try{const id=await findFile();if(!id){await push();return}
    const remote=await (await api(`${API}/files/${id}?alt=media`)).json(),first=!ls('synced');
-   if(remote&&remote.items&&(first||(remote.savedAt||0)>(S.savedAt||0))){if(first)ls('bak',JSON.stringify(S));S=remote;lastSig=null;save();ls('synced','1');last=Date.now();render();if(first)toast('Carreguei os teus dados do Drive',false)}
-   else{ls('synced','1');if(force||(S.savedAt||0)>(remote.savedAt||0))await push();else last=Date.now()}}catch(e){console.warn(e)}}
+   if(!remote||!remote.items){await push();return}
+   if(first){const caps=S.items.filter(i=>i.nb===INBOX);ls('bak',JSON.stringify(S));S=remote;ensureInbox();caps.forEach(c=>{if(!S.items.some(i=>i.id===c.id))S.items.push(c)});lastSig=null;save();ls('synced','1');last=Date.now();render();toast('Carreguei os teus dados do Drive',false);if(caps.length)await push();return}
+   const core=x=>JSON.stringify([x.nb,x.items,x.del||{}]),before=core(S),rs=core(remote);S=mergeState(S,remote);ensureInbox();const now2=core(S);
+   if(now2!==before){lastSig=sig();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}render()}
+   last=Date.now();if(force||now2!==rs)await push()}catch(e){console.warn(e)}}
  async function connect(interactive){await token(interactive);on=true;ls('g','1');try{const a=await (await api(`${API}/about?fields=user(emailAddress)`)).json();email=a.user.emailAddress;ls('email',email)}catch(e){}await pull();renderSide();names()}
  function disconnect(){try{if(tok&&window.google)google.accounts.oauth2.revoke(tok)}catch(e){}tok=null;on=false;fileId=null;ls('g',null);renderSide()}
  const schedule=()=>{if(!on)return;clearTimeout(t);t=setTimeout(()=>{names();push()},1500)};
@@ -846,6 +893,7 @@ window.gvtDiag=d=>toast(`Editor: ecrã ${d.dpr}x · ${d.w}px`,false);
 if(NATIVE){addEventListener('resize',nativePlace);const mo=new MutationObserver(()=>nativePlace());document.querySelectorAll('.modal,#menu').forEach(m=>mo.observe(m,{attributes:true,attributeFilter:['class']}))}
 if(innerWidth<=760)$('#app').dataset.pane='side';
 render();
+hashCap();
 }
 </script>
 </body>
