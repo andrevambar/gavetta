@@ -130,6 +130,10 @@ h1.t{font-weight:900;font-size:clamp(32px,4.6vw,44px);line-height:1.08;letter-sp
 .r .rt{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .r .rs{font-size:14px;color:var(--mute);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .r .rd{font-size:13px;color:var(--mute);white-space:nowrap;display:flex;gap:6px;align-items:center}
+.r .rm{width:26px;height:26px;margin:-4px -2px -4px 2px;opacity:.35;transition:opacity .15s}
+.r:hover .rm,.r .rm:focus-visible{opacity:1}
+@media (hover:none){.r .rm{opacity:.6}}
+.r .rt[contenteditable=true]{outline:none;box-shadow:0 1px 0 var(--acc);cursor:text;text-overflow:clip}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--sheet)}.dot.p{background:var(--slides)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .tile{border:1px solid var(--rule);border-radius:12px;padding:14px;cursor:pointer;display:grid;gap:8px;align-content:start;min-height:108px}
@@ -404,7 +408,7 @@ function viewHome(){
  <div>${todos.length?todos.map(b=>`<div class="todo${b.d?' done':''}"><button class="x" data-act="jtodo" data-k="${j.blocks.indexOf(b)}" aria-label="Concluir"></button><div class="tx">${fmt(b.v)}</div></div>`).join(''):'<p class="note">Nada para hoje. Abre o diário para escrever.</p>'}</div>
  <h3>Recentes</h3><div class="rows">${rec.map(row).join('')}</div></div>`}
 const tile=i=>`<div class="tile" data-go="item" data-id="${i.id}">${icon(i.type)}<b>${esc(i.title)}</b><small>${i.nb?esc(nbName(i.nb)):'Diário'} · ${ago(i.upd)}</small></div>`;
-const row=i=>`<div class="r" data-go="item" data-id="${i.id}" data-type="${i.type}"${i.type==="journal"?"":' draggable="true"'}>${icon(i.type)}<div class="rb"><div class="rt">${esc(i.title||'Sem título')}</div><div class="rs">${i.type==='folder'?`Pasta · ${desc(i.id).filter(x=>x.type!=='folder').length} itens`:i.type==='board'?`Quadro · ${(i.cards||[]).length} cartões`:FILE(i.type)?TYPES[i.type]:fmt(strip((i.blocks||[]).map(b=>b.v||b.title||'').join(' · ')).slice(0,160))||'Página vazia'}</div></div><div class="rd">${i.sync==='pending'?'<span class="dot p"></span>':i.offline?'<span class="dot"></span>':''}${ago(i.upd)}</div></div>`;
+const row=i=>`<div class="r" data-go="item" data-id="${i.id}" data-type="${i.type}"${i.type==="journal"?"":' draggable="true"'}>${icon(i.type)}<div class="rb"><div class="rt">${esc(i.title||'Sem título')}</div><div class="rs">${i.type==='folder'?`Pasta · ${desc(i.id).filter(x=>x.type!=='folder').length} itens`:i.type==='board'?`Quadro · ${(i.cards||[]).length} cartões`:FILE(i.type)?TYPES[i.type]:fmt(strip((i.blocks||[]).map(b=>b.v||b.title||'').join(' · ')).slice(0,160))||'Página vazia'}</div></div><div class="rd">${i.sync==='pending'?'<span class="dot p"></span>':i.offline?'<span class="dot"></span>':''}${ago(i.upd)}<button class="ib rm" data-act="rmenu" data-id="${i.id}" aria-label="Opções">${I.more}</button></div></div>`;
 function viewNb(id){
  const n=S.nb.find(x=>x.id===id);if(!n)return viewHome();
  const all=S.items.filter(i=>i.nb===id&&i.type!=='folder'),list=S.items.filter(i=>i.nb===id&&!i.parent&&(!onlyOff||i.offline||i.type==='folder')).sort(byKind);
@@ -642,6 +646,7 @@ document.addEventListener('click',e=>{
  const tw=e.target.closest('[data-tw],[data-twn]');
  if(tw){e.stopPropagation();const o=tw.dataset.tw?item(tw.dataset.tw):S.nb.find(n=>n.id===tw.dataset.twn);o.open=!o.open;renderSide();save();return}
  if(!e.target.closest('#menu')&&!e.target.closest('[data-act$=menu]'))closeMenu();
+ if(e.target.isContentEditable&&e.target.closest('.r'))return;
  const g=e.target.closest('[data-go]');if(g&&!e.target.closest('[data-act]')){go(g.dataset.go,g.dataset.id);return}
  const tg=e.target.closest('[data-tag]');if(tg){go('tag',tg.dataset.tag);return}
  const a=e.target.closest('[data-act]');if(!a)return;
@@ -674,6 +679,8 @@ document.addEventListener('click',e=>{
  else if(act==='imenu'){const t=item(a.dataset.id);menu(`${t.type==='journal'?'':`<label style="display:block;font-size:13px;color:var(--mute)">Mover para<select data-move="${t.id}">${moveOpts(t)}</select></label>`}${FILE(t.type)?`<button data-act="rename" data-id="${t.id}">Mudar o nome</button>`:''}<button data-act="toff" data-id="${t.id}">${t.offline?'Remover do offline':'Disponibilizar offline'}</button><hr><button data-act="idel" data-id="${t.id}" style="color:var(--acc)">Apagar</button>`,a)}
  else if(act==='rename'){closeMenu();const t=item(a.dataset.id);const b=$('.viewer').previousElementSibling.querySelector('b');b.contentEditable=true;b.dataset.edit='title';b.dataset.id=t.id;b.focus()}
  else if(act==='idel'){closeMenu();delItem(a.dataset.id)}
+ else if(act==='rmenu'){const t=item(a.dataset.id);const j=t.type==='journal';menu(`${j?'':`<button data-act="rrename" data-id="${t.id}">Mudar o nome</button><label style="display:block;font-size:13px;color:var(--mute)">Mover para<select data-move="${t.id}">${moveOpts(t)}</select></label>`}<button data-act="toff" data-id="${t.id}">${t.offline?'Remover do offline':'Disponibilizar offline'}</button><hr><button data-act="idel" data-id="${t.id}" style="color:var(--acc)">Apagar</button>`,a)}
+ else if(act==='rrename'){closeMenu();const r=document.querySelector(`.r[data-id="${a.dataset.id}"]`);if(!r)return;const el=r.querySelector('.rt');r.draggable=false;el.contentEditable=true;el.dataset.edit='title';el.dataset.id=a.dataset.id;if(!item(a.dataset.id).title)el.textContent='';el.focus();const rg=document.createRange();rg.selectNodeContents(el);const sl=getSelection();sl.removeAllRanges();sl.addRange(rg);el.onblur=()=>render()}
  else if(act==='nbmenu')menu(`<button data-act="nbdel" data-id="${a.dataset.id}" style="color:var(--acc)">Apagar caderno e o seu conteúdo</button>`,a);
  else if(act==='nbdel'){closeMenu();const oldN=S.nb.slice(),oldI=S.items.slice(),id=a.dataset.id;S.nb=S.nb.filter(n=>n.id!==id);S.items=S.items.filter(x=>x.nb!==id);undo=()=>{S.nb=oldN;S.items=oldI;render()};toast('Caderno apagado');go('home')}
 });
@@ -719,6 +726,7 @@ document.addEventListener('keydown',e=>{
  if(el.dataset.wday&&e.key==='Enter'&&el.value.trim()){const v=el.value.trim(),d=detect(v),j=jfor(el.dataset.wday,true);j.blocks.push(d?{k:'file',url:d.url,type:d.type,title:d.title}:{k:'todo',v,d:false});touch(j);const k=el.dataset.wday;render();const n=document.querySelector(`[data-wday="${k}"]`);n&&n.focus();return}
  if(el.dataset.wnb&&e.key==='Enter'&&el.value.trim()){const v=el.value.trim(),d=detect(v),nb=el.dataset.wnb;S.items.push({id:uid(),nb,parent:null,type:d?d.type:'note',title:d?d.title:v.slice(0,80),url:d?d.url:'',blocks:d?[]:[{k:'p',v:''}],offline:false,sync:online?'ok':'pending',pinned:false,upd:now()});render();const n=document.querySelector(`[data-wnb="${nb}"]`);n&&n.focus();return}
  if(e.key==='Escape'){pickCb=null;$('#mDrive').classList.remove('show');closeMenu();$('#mSearch').classList.remove('show');$('#mSet').classList.remove('show')}
+ if(el.dataset.edit==='title'&&el.closest('.r')&&(e.key==='Enter'||e.key==='Escape')){e.preventDefault();el.blur();return}
  if(el.dataset.edit==='title'&&e.key==='Enter'){e.preventDefault();const i=item(el.dataset.id);if(i&&i.blocks){if(!i.blocks.length)i.blocks.push({k:'p',v:''});render('[data-b="0"]')}else{el.blur();render()}}
  if(el.dataset.edit==='nbname'&&e.key==='Enter'){e.preventDefault();el.blur()}
  if(el.dataset.b!=null){const i=item(route.id),k=+el.dataset.b,b=i.blocks[k];
