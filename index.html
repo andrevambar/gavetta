@@ -2,6 +2,8 @@
 <html lang="pt-PT">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://www.googleapis.com https://accounts.google.com https://oauth2.googleapis.com; frame-src https://docs.google.com https://drive.google.com https://accounts.google.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Gavetta — o teu hub Google</title>
@@ -427,8 +429,10 @@ function mockFile(type){
  :`<svg viewBox="0 0 400 300"><rect x="40" y="10" width="320" height="320" rx="8" fill="var(--bg)"/><rect x="60" y="36" width="170" height="14" rx="6" fill="${type==='pdf'?'#e04a3f':'#3b7cf0'}"/>${lines(70,10)}</svg>`;
  return`<div class="mock">${art}<div class="cap">${online?'Na app de Mac, o ficheiro abre e edita-se aqui mesmo. Esta pré-visualização no browser não pode embeber o Google.':'Sem rede: aqui aparece a cópia offline guardada neste dispositivo.'}</div></div>`}
 const HOSTED=/^https:$/.test(location.protocol)&&!/claude|anthropic|usercontent/.test(location.hostname)||location.hostname==='localhost';
+const safeUrl=u=>/^https?:\/\//i.test(String(u||'').trim())?String(u).trim():'#';
+const GHOST=u=>/^https:\/\/(docs|drive)\.google\.com\//.test(u);
 const previewUrl=u=>{let m;if((m=u.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([\w-]+)/)))return`https://docs.google.com/${m[1]}/d/${m[2]}/preview`;if((m=u.match(/drive\.google\.com\/file\/d\/([\w-]+)/)))return`https://drive.google.com/file/d/${m[1]}/preview`;if((m=u.match(/folders\/([\w-]+)/)))return`https://drive.google.com/embeddedfolderview?id=${m[1]}#list`;return u};
-const embedHTML=(url,type)=>ELECTRON?`<webview src="${esc(url)}" partition="persist:google" allowpopups></webview>`:HOSTED&&!/demo\d/.test(url)&&online?`<iframe src="${esc(previewUrl(url))}" style="flex:1;border:0;width:100%;min-height:400px" allow="clipboard-write" loading="lazy"></iframe>`:mockFile(type);
+const embedHTML=(url,type)=>ELECTRON&&GHOST(url)?`<webview src="${esc(url)}" partition="persist:google" allowpopups></webview>`:HOSTED&&GHOST(url)&&!/demo\d/.test(url)&&online?`<iframe src="${esc(previewUrl(url))}" style="flex:1;border:0;width:100%;min-height:400px" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" loading="lazy"></iframe>`:mockFile(type);
 function viewItem(id){
  const i=item(id);if(!i)return viewHome();
  const crumb=i.type==='journal'?`<a data-go="home">Início</a> / Diário`:`<a data-go="nb" data-id="${i.nb}">${esc(nbName(i.nb))}</a>${anc(i).map(p=>` / <a data-go="item" data-id="${p.id}">${esc(p.title||'Sem título')}</a>`).join('')} / ${esc(i.title)}`;
@@ -437,7 +441,7 @@ function viewItem(id){
  if(i.type==='board'){document.body.classList.add('fullfile');return topbar(crumb,acts)+boardHTML(i)}
  if(FILE(i.type)){
   document.body.classList.add('fullfile');
-  return topbar(crumb,`<a class="ib txt" href="${esc(i.url)}" target="_blank" rel="noopener">${I.ext}<span>Abrir no Google</span></a>`+acts)+
+  return topbar(crumb,`<a class="ib txt" href="${esc(safeUrl(i.url))}" target="_blank" rel="noopener">${I.ext}<span>Abrir no Google</span></a>`+acts)+
   `<div style="padding:0 18px 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">${icon(i.type)}<b style="font-size:18px">${esc(i.title)}</b>${offChip(i)}${syncChip(i)}</div><div class="viewer">${embedHTML(i.url,i.type)}</div>`}
  const subs=S.items.filter(k=>k.parent===id);
  return topbar(crumb,acts)+`<div class="page">
@@ -453,7 +457,7 @@ function block(b,k){
  const h=`<button class="hand" data-act="bmenu" data-k="${k}" aria-label="Opções do bloco">${I.grip}</button>`;
  if(b.k==='todo')return`<div class="blk">${h}<div class="todo${b.d?' done':''}"><button class="x" data-act="tick" data-k="${k}" aria-label="Concluir"></button><div class="tx" contenteditable data-b="${k}" data-ph="Tarefa">${esc(b.v)}</div></div></div>`;
  if(b.k==='toggle')return`<div class="blk">${h}<div class="tgl${b.open?' open':''}"><button class="tgb" data-act="tgl" data-k="${k}" aria-label="Abrir ou fechar" aria-expanded="${!!b.open}"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button><div class="tgs" contenteditable data-b="${k}" data-ph="Toggle — escreve o título">${esc(b.v)}</div></div>${b.open?`<div class="tgc" contenteditable data-tc="${k}" data-ph="Conteúdo escondido… escreve aqui">${esc(b.c||'')}</div>`:''}</div>`;
- if(b.k==='file')return`<div class="blk">${h}${b.open?`<div class="embed"><div class="card" style="margin:0;border:0;border-bottom:1px solid var(--rule);border-radius:0" data-act="fold" data-k="${k}">${icon(b.type)}<div class="cn">${esc(b.title)}<small>${TYPES[b.type]} · toca para fechar</small></div></div>${embedHTML(b.url,b.type)}</div>`:`<div class="card" data-act="fold" data-k="${k}">${icon(b.type)}<div class="cn">${esc(b.title)}<small>${TYPES[b.type]} · abrir aqui</small></div><a class="ib" href="${esc(b.url)}" target="_blank" rel="noopener" aria-label="Abrir no Google" onclick="event.stopPropagation()">${I.ext}</a></div>`}</div>`;
+ if(b.k==='file')return`<div class="blk">${h}${b.open?`<div class="embed"><div class="card" style="margin:0;border:0;border-bottom:1px solid var(--rule);border-radius:0" data-act="fold" data-k="${k}">${icon(b.type)}<div class="cn">${esc(b.title)}<small>${TYPES[b.type]} · toca para fechar</small></div></div>${embedHTML(b.url,b.type)}</div>`:`<div class="card" data-act="fold" data-k="${k}">${icon(b.type)}<div class="cn">${esc(b.title)}<small>${TYPES[b.type]} · abrir aqui</small></div><a class="ib" href="${esc(safeUrl(b.url))}" target="_blank" rel="noopener" aria-label="Abrir no Google" onclick="event.stopPropagation()">${I.ext}</a></div>`}</div>`;
  return`<div class="blk">${h}<div class="${b.k==='h'?'h':'p'}" contenteditable data-b="${k}" data-ph="${b.k==='h'?'Título':'Escreve algo… usa #etiquetas'}">${esc(b.v)}</div></div>`}
 
 
